@@ -1,0 +1,73 @@
+version: '3'
+services:
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:ubuntu-6.4-latest
+    container_name: zabbix-server
+    restart: unless-stopped
+    ports:
+      - "10051:10051"
+    environment:
+      - DB_SERVER_HOST=zabbix-mysql
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=zabbix
+      - MYSQL_PASSWORD=zabbix_pwd
+      - MYSQL_ROOT_PASSWORD=root_pwd
+    networks:
+      - monitoring-net
+    depends_on:
+      - zabbix-mysql
+
+  zabbix-mysql:
+    image: mysql:8.0
+    container_name: zabbix-mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=zabbix
+      - MYSQL_PASSWORD=zabbix_pwd
+      - MYSQL_ROOT_PASSWORD=root_pwd
+    command: --character-set-server=utf8 --collation-server=utf8_bin
+    networks:
+      - monitoring-net
+    volumes:
+      - zabbix-mysql-data:/var/lib/mysql
+
+  zabbix-web:
+    image: zabbix/zabbix-web-apache-mysql:ubuntu-6.4-latest
+    container_name: zabbix-web
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ZBX_SERVER_HOST=zabbix-server
+      - DB_SERVER_HOST=zabbix-mysql
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=zabbix
+      - MYSQL_PASSWORD=zabbix_pwd
+      - MYSQL_ROOT_PASSWORD=root_pwd
+    networks:
+      - monitoring-net
+    depends_on:
+      - zabbix-server
+      - zabbix-mysql
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - monitoring-net
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  zabbix-mysql-data:
+  grafana-data:
+
+networks:
+  monitoring-net:
+    driver: bridge
